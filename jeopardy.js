@@ -33,8 +33,11 @@ async function getCategoryIds() {
   //get ids &names of first 6 (total 18414)
   let offset = randNum(maxOffset);
   let res = await axios.get(baseUrl + `/categories?count=100&offset=${offset}`);
+  //   console.log(res);
+  let testArr = shuffleArr(res.data).slice(0, 6);
+  console.log(testArr);
 }
-
+getCategoryIds();
 /** Return object with data about a category:
  *
  *  Returns { title: "Math", clues: clue-array }
@@ -85,6 +88,24 @@ async function setupAndStart() {}
 /** On page load, setup and start & add event handler for clicking clues */
 
 // TODO
+
+//HELPER FUNCTIONS
 function randNum(max) {
   return Math.floor(Math.random() * (max + 1) - 1);
+}
+
+function shuffleArr(arr) {
+  //shuffles array only returns an array of length  numToReturn
+  let m = arr.length;
+
+  // While there remain elements to shuffle…
+  while (m) {
+    // Pick a remaining element…
+    let i = Math.floor(Math.random() * m--);
+
+    // And swap it with the current element.
+    [arr[m], arr[i]] = [arr[i], arr[m]];
+  }
+
+  return arr;
 }
