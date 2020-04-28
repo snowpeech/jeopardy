@@ -1,93 +1,107 @@
 const baseUrl = "http://jservice.io/api";
-const maxOffset = 18350; //total categories in API is 18414
-// categories is the main data structure for the app; it looks like this:
-
-//  [
-//    { title: "Math",
-//      clues: [
-//        {question: "2+2", answer: 4, showing: null},
-//        {question: "1+1", answer: 2, showing: null}
-//        ...
-//      ],
-//    },
-//    { title: "Literature",
-//      clues: [
-//        {question: "Hamlet Author", answer: "Shakespeare", showing: null},
-//        {question: "Bell Jar Author", answer: "Plath", showing: null},
-//        ...
-//      ],
-//    },
-//    ...
-//  ]
-//so basically make that object aove, and use it to run the board.
+const maxOffset = 18350; //total categories in API is 18414 as of 4/2020
 let categories = [];
 
-/** Get NUM_CATEGORIES random category from API.
- *
- * Returns array of category ids
- */
-
 async function getCategoryIds() {
-  //get categories
-  //shuffle
-  //get ids &names of first 6 (total 18414)
   let offset = randNum(maxOffset);
-  let res = await axios.get(baseUrl + `/categories?count=100&offset=${offset}`);
-  //   console.log(res);
-  let testArr = shuffleArr(res.data).slice(0, 6);
-  console.log(testArr);
+  try {
+    let res = await axios.get(
+      baseUrl + `/categories?count=100&offset=${offset}`
+    );
+
+    let categoriesArr = shuffleArr(res.data).slice(0, 6);
+    let catIds = categoriesArr.map((value) => value.id);
+
+    return catIds;
+  } catch (err) {
+    throw err;
+  }
 }
-getCategoryIds();
-/** Return object with data about a category:
- *
- *  Returns { title: "Math", clues: clue-array }
- *
- * Where clue-array is:
- *   [
- *      {question: "Hamlet Author", answer: "Shakespeare", showing: null},
- *      {question: "Bell Jar Author", answer: "Plath", showing: null},
- *      ...
- *   ]
- */
 
-function getCategory(catId) {}
+async function getCategory(catId) {
+  let catObj = {};
 
-/** Fill the HTML table#jeopardy with the categories & cells for questions.
- *
- * - The <thead> should be filled w/a <tr>, and a <td> for each category
- * - The <tbody> should be filled w/NUM_QUESTIONS_PER_CAT <tr>s,
- *   each with a question for each category in a <td>
- *   (initally, just show a "?" where the question/answer would go.)
- */
+  try {
+    let res = await axios.get(baseUrl + `/clues?category=${catId}`);
+    catObj.title = res.data[0].category.title;
 
-async function fillTable() {}
+    let clueArr = res.data.map((value) => {
+      let clue = {};
+      clue.question = value.question;
+      clue.answer = value.answer;
+      clue.showing = null;
+      return clue;
+    });
+    catObj.clues = clueArr;
+    return catObj;
+  } catch (err) {
+    console.error(err);
+  }
+}
 
-/** Handle clicking on a clue: show the question or answer.
- *
- * Uses .showing property on clue to determine what to show:
- * - if currently null, show question & set .showing to "question"
- * - if currently "question", show answer & set .showing to "answer"
- * - if currently "answer", ignore click
- * */
+async function createBoardData() {
+  const catIdsArr = await getCategoryIds(); //array of values
 
-function handleClick(evt) {}
+  const pArray = catIdsArr.map(async (id) => {
+    let cats = await getCategory(id);
+    return cats;
+  });
 
-/** Start game:
- *
- * - get random category Ids
- * - get data for each category
- * - create HTML table
- * */
+  const useful = await Promise.all(pArray);
 
-async function setupAndStart() {}
+  return (categories = useful);
+}
 
-/** On click of restart button, restart game. */
+async function fillTable() {
+  //create top row
+  $("#jeopardy thead").append("<tr>");
+  for (objs in categories) {
+    $("#jeopardy tr").append(`<th>${categories[objs].title}</th>`);
+  }
 
-// TODO
+  // make board body
+  for (let y = 0; y < 5; y++) {
+    const $row = $("<tr>");
 
-/** On page load, setup and start & add event handler for clicking clues */
+    for (let x = 0; x < 6; x++) {
+      $("<td>").attr("id", `${x}-${y}`).html("?").appendTo($row);
+    }
 
-// TODO
+    $("#jeopardy tbody").append($row);
+  }
+}
+
+$("tbody").on("click", handleClick);
+
+function handleClick(evt) {
+  const x = evt.target.id.slice(0, 1);
+  const y = evt.target.id.slice(2, 3);
+  const tile = categories[x].clues[y];
+
+  switch (tile.showing) {
+    case null:
+      evt.target.innerText = tile.question;
+      categories[x].clues[y].showing = "question";
+      break;
+    case "question":
+      evt.target.innerText = tile.answer;
+      categories[x].clues[y].showing = "answer";
+      break;
+  }
+}
+
+async function setupAndStart() {
+  $("#jeopardy").html("<thead></thead><tbody></tbody>");
+  categories = [];
+  await createBoardData();
+  await fillTable();
+  $("tbody").on("click", handleClick);
+}
+
+$("#restart").on("click", setupAndStart);
+
+/** On page load, setup and start & add event handler for clicking clues*/
+//why does that need to be here? why cant that clue handler come before the board if it's placed on tbody?
 
 //HELPER FUNCTIONS
 function randNum(max) {
@@ -97,15 +111,12 @@ function randNum(max) {
 function shuffleArr(arr) {
   //shuffles array only returns an array of length  numToReturn
   let m = arr.length;
-
   // While there remain elements to shuffle…
   while (m) {
     // Pick a remaining element…
     let i = Math.floor(Math.random() * m--);
-
     // And swap it with the current element.
     [arr[m], arr[i]] = [arr[i], arr[m]];
   }
-
   return arr;
 }
