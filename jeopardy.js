@@ -1,4 +1,4 @@
-const baseUrl = "http://jservice.io/api";
+const baseUrl = "https://jservice.io/api";
 const maxOffset = 18350; //total categories in API is 18414 as of 4/2020
 let categories = [];
 
